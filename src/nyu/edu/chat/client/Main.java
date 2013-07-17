@@ -17,14 +17,21 @@ public class Main {
 			while ((outString = stdin.readLine()) != null) {
 				client.write(outString);
 				if (outString.equals("bye")) {
+					//need to wake up the blocking thread first.
 					break;
 				}
 			}
 			client.stop();
-			stdin.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			try {
+				stdin.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 	}
 }

@@ -20,41 +20,57 @@ public class ChatClient implements Runnable {
 	BufferedReader in = null;
 	private Socket socket = null;
 	Thread thread = null;
-	volatile boolean connected = true;
+	boolean connected = true;
 
 	public ChatClient(String host, int port) {
 		try {
+			// initialized input and output.
 			socket = new Socket(host, port);
-			// this solved the problem!!!!!
-			socket.setSoTimeout(1000);
+			out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(
+					socket.getOutputStream())), true);
+			in = new BufferedReader(new InputStreamReader(
+					socket.getInputStream()));
 			thread = new Thread(this);
 			thread.start();
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("Unknown host!");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("IO Exception");
 		}
 	}
 
-	public void disconnect() {
-		try {
-			out.close();
-			in.close();
-			socket.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
 
-	// can't close the thread by setting the connected to false;
-	// How to stop a thread that is blocked on waiting input from socket????
-	// by using socket.setSoTimeout(1000) which a read() call on the InputStream
-	// associated with this Socket will block for only this amount of time
+	/*
+	 * Can't close the thread by setting the connected to false; 
+	 * How to stop a thread that is blocked on waiting input from socket???? 
+	 * Old solution:
+	 * Using socket.setSoTimeout(1000) which a read() call on the InputStream
+	 * associated with this Socket will block for only this amount of time.
+	 * New solution: 
+	 * Using socket.shutdownInput to wake up the thread that is
+	 * blocked on reading input stream.
+	 */
 	public void stop() {
+		// wake the thread.
 		connected = false;
+		try {
+			socket.shutdownInput();
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+			try {
+				out.close();
+				in.close();
+				socket.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public void write(String string) {
@@ -64,30 +80,19 @@ public class ChatClient implements Runnable {
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
-		try {
-			out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(
-					socket.getOutputStream())), true);
-			in = new BufferedReader(new InputStreamReader(
-					socket.getInputStream()));
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 		String inString = null;
 		while (connected) {
+			// The thread is blocked here waiting for input
+			// string and it will wake up when an input string comes.
+			// when the user want to exit, we need to wake up this thread first.
 			try {
-				// looks like the thread is blocked here waiting for input
-				// string and it will be closed when an input string comes.
 				if ((inString = in.readLine()) != null)
 					System.out.println(inString);
 			} catch (IOException e) {
-				// Have to use this to catch the SocketTimeoutException, the
-				// socket will still be valid after this exception.
-				Thread.currentThread().interrupt();
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		}
-		this.disconnect();
-
 	}
 
 }
