@@ -13,16 +13,25 @@ import nyu.edu.chat.Observer;
 
 public class ClientThread implements Observer, Runnable {
 
-	Observable subject = null;
-	Socket socket = null;
-	Thread thread = null;
+	private Observable subject = null;
+	private Socket socket = null;
+	private Thread thread = null;
 	String name = null;
-	PrintWriter out = null;
-	BufferedReader in = null;
+	private PrintWriter out = null;
+	private BufferedReader in = null;
 
 	public ClientThread(Observable subject, Socket socket) {
 		this.subject = subject;
 		this.socket = socket;
+		try {
+			out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(
+					socket.getOutputStream())), true);
+			in = new BufferedReader(new InputStreamReader(
+					socket.getInputStream()));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		thread = new Thread(this);
 		thread.start();
 
@@ -33,7 +42,7 @@ public class ClientThread implements Observer, Runnable {
 		// TODO Auto-generated method stub
 		out.println(string);
 	}
-	
+
 	public void disconnect() {
 		try {
 			out.close();
@@ -49,13 +58,14 @@ public class ClientThread implements Observer, Runnable {
 	public void run() {
 		// TODO Auto-generated method stub
 		try {
-			out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(
-					socket.getOutputStream())), true);
-			in = new BufferedReader(new InputStreamReader(
-					socket.getInputStream()));
+			
 			out.println("Please type your name:");
 			String s = null;
 			while ((s = in.readLine()) != null) {
+				if (s.equals("bye")) {
+					subject.removeObserver(this, name + " just left the room.");
+					break;
+				}
 				if (name == null) {
 					name = s;
 					subject.notifyObserver(this, name
@@ -64,10 +74,7 @@ public class ClientThread implements Observer, Runnable {
 				} else {
 					subject.notifyObserver(this, name + ": " + s);
 				}
-				if (s == "bye") {
-					subject.removeObserver(this, name + " just left the room.");
-					break;
-				}
+				
 			}
 			this.disconnect();
 		} catch (IOException e) {
